@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>แผนภูมิประสิทธิภาพ EII รายเดือน (Dark Theme - Full Data)</title>
+    <!-- โหลด Tailwind CSS สำหรับการจัดสไตล์ -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- กำหนดค่าเริ่มต้นของ Tailwind และใช้ Font Inter -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            /* เปลี่ยนสีไอคอนให้เป็นสีขาว */
+            cursor: pointer;
+            /* เปลี่ยนเคอร์เซอร์เมื่อชี้ไปที่ไอคอน */
+        }
+    </style>
+    <!-- โหลด Chart.js สำหรับสร้างแผนภูมิ -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+
+<body class="bg-gray-900 min-h-screen p-4 sm:p-8">
+
+    <!-- Toast Notification Area (Fixed position, z-index สูง) -->
+    <div id="toastContainer" class="fixed top-5 right-5 z-50 space-y-3">
+        <!-- Toasts will appear here -->
+    </div>
+
+    <div class="max-w-4xl mx-auto bg-gray-800 shadow-xl rounded-xl p-6 md:p-10 border border-gray-700 mb-8">
+
+        <!-- H1: Title หลักของ Report ตามที่ผู้ใช้เสนอ -->
+        <h1 class="text-4xl font-black text-white mb-6 border-b pb-4 border-gray-700">Energy Intensity Index (EII)
+            Report</h1>
+
+        <!-- H2: Title สำหรับ Chart 1 (ใช้ avgList_Title ที่ดึงมาจาก JSON) -->
+        <h2 class="text-3xl font-extrabold text-blue-400 mb-2" id="chart1Title">
+            <!-- Title will be injected here -->
+        </h2>
+        <p class="text-gray-400 mb-8">
+            แสดงค่า EII (แท่งสีน้ำเงิน/แดง) เทียบกับเป้าหมาย (เส้นสีส้ม) ตลอดทั้งปี
+        </p>
+
+        <!-- Chart 1: EII vs Target -->
+        <div class="relative h-96 w-full p-2 rounded-lg bg-gray-900 mb-8">
+            <canvas id="eiiAvgChart"></canvas>
+        </div>
+
+        <div id="dataSummaryAvg" class="mt-8 pt-4 border-t border-gray-700">
+            <h3 class="text-xl font-semibold text-gray-200 mb-3">สรุปข้อมูล EII รวม</h3>
+            <table class="min-w-full divide-y divide-gray-700 rounded-lg overflow-hidden">
+                <thead class="bg-gray-700">
+                    <tr>
+                        <th class="px-3 py-2 text-left text-sm font-medium text-blue-300 uppercase tracking-wider">เดือน
+                        </th>
+                        <th class="px-3 py-2 text-right text-sm font-medium text-blue-300 uppercase tracking-wider">EII
+                            (%)</th>
+                        <th class="px-3 py-2 text-right text-sm font-medium text-blue-300 uppercase tracking-wider">
+                            Target (%)</th>
+                    </tr>
+                </thead>
+                <tbody id="dataBodyAvg" class="bg-gray-800 divide-y divide-gray-700">
+                    <!-- Data rows will be injected here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="max-w-4xl mx-auto bg-gray-800 shadow-xl rounded-xl p-6 md:p-10 border border-gray-700">
+        <!-- H2: Title สำหรับ Chart 2 (ใช้ detailList_Title ที่ดึงมาจาก JSON) -->
+        <h2 class="text-3xl font-extrabold text-green-400 mb-2" id="chart2Title">
+            <!-- Title will be injected here -->
+        </h2>
+        <p class="text-gray-400 mb-8">
+            แสดงรายละเอียดของ EII แยกตามส่วนประกอบ (HD, PP12, PP3) โดยแสดงเป็นแท่งบาร์ข้างกันเทียบกับเป้าหมาย
+        </p>
+
+        <!-- Chart 2: Detailed EII Components vs Target (Now Grouped Bar Chart) -->
+        <div class="relative h-96 w-full p-2 rounded-lg bg-gray-900">
+            <canvas id="eiiDetailChart"></canvas>
+        </div>
+
+        <div id="dataSummaryDetail" class="mt-8 pt-4 border-t border-gray-700">
+            <h3 class="text-xl font-semibold text-gray-200 mb-3">สรุปข้อมูล EII แยกส่วน</h3>
+            <table class="min-w-full divide-y divide-gray-700 rounded-lg overflow-hidden">
+                <thead class="bg-gray-700">
+                    <tr>
+                        <th class="px-3 py-2 text-left text-sm font-medium text-green-300 uppercase tracking-wider">
+                            เดือน</th>
+                        <th class="px-3 py-2 text-right text-sm font-medium text-green-300 uppercase tracking-wider">HD
+                            (%)</th>
+                        <th class="px-3 py-2 text-right text-sm font-medium text-green-300 uppercase tracking-wider">
+                            PP12 (%)</th>
+                        <th class="px-3 py-2 text-right text-sm font-medium text-green-300 uppercase tracking-wider">PP3
+                            (%)</th>
+                        <th class="px-3 py-2 text-right text-sm font-medium text-green-300 uppercase tracking-wider">
+                            Target (%)</th>
+                    </tr>
+                </thead>
+                <tbody id="dataBodyDetail" class="bg-gray-800 divide-y divide-gray-700">
+                    <!-- Data rows will be injected here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- NEW SECTION: Data Structure Mock-up -->
+    <div class="max-w-4xl mx-auto bg-gray-800 shadow-xl rounded-xl p-6 md:p-10 border border-gray-700 mt-8">
+        <h2 class="text-3xl font-extrabold text-purple-400 mb-4">
+            โครงสร้างข้อมูลดิบสำหรับ EII แยกส่วน (DetailList)
+        </h2>
+        <p class="text-gray-400 mb-4">
+            ตัวอย่างโครงสร้างข้อมูล JSON ที่ใช้ในการสร้างแผนภูมิรายละเอียด (HD, PP12, PP3)
+            แต่ละรายการเป็นข้อมูลของแต่ละเดือน:
+        </p>
+        <!-- ค่าของ max-h-96 ถูกเลือกโดยอิงจากมาตรฐานของ Tailwind CSS ซึ่งกำหนดความสูงสูงสุดเป็น 24rem (96 หน่วยใน Tailwind CSS = 24rem) เพื่อให้เหมาะสมกับการแสดงผลในหน้าจอทั่วไป-->
+        <div class="p-4 bg-gray-900 rounded-lg overflow-x-auto overflow-y-auto max-h-96">
+            <pre id="rawDataStructure" class="text-sm text-yellow-300 whitespace-pre-wrap break-all"></pre>
+        </div>
+    </div>
+    <!-- END NEW SECTION -->
+
+    <!-- SECTION 1: Admin Data Input Form (EII) -->
+    <div class="max-w-4xl mx-auto bg-gray-800 shadow-xl rounded-xl p-6 md:p-10 border border-purple-700 mt-8">
+        <h2 class="text-3xl font-extrabold text-purple-400 mb-4">
+            ส่วนควบคุม 1: บันทึกข้อมูล EII รายเดือน
+        </h2>
+        <p class="text-gray-400 mb-6">
+            ป้อนวันที่และค่า EII แยกส่วน (HD, PP12, PP3) เพื่อจำลองการส่งข้อมูลในรูปแบบ `FormData` ไปยัง Google Apps
+            Script API.
+        </p>
+
+        <form id="eiiInputForm" class="space-y-6">
+            <!-- Date Input -->
+            <div>
+                <label for="inputDate" class="block text-sm font-medium text-gray-300 mb-1">
+                    วันที่ (DateString - YYYY-MM-DD):
+                </label>
+                <input type="date" id="inputDate" name="DateString"
+                    class="mt-1 block w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
+            </div>
+
+            <!-- EII Component Inputs -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- HD -->
+                <div>
+                    <label for="inputHD" class="block text-sm font-medium text-gray-300 mb-1">HD (%)</label>
+                    <input type="text" id="inputHD" name="HD" placeholder="0.00 to 100.00"
+                        pattern="^([0-9]{1,2}\.[0-9]{2}|100\.00|[0-9]{1,3})$"
+                        title="กรุณาป้อนตัวเลขในรูปแบบ xx.xx หรือ xxx (เช่น 85.50 หรือ 100)"
+                        oninput="validateEIIValue(this)"
+                        class="mt-1 block w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <!-- PP12 -->
+                <div>
+                    <label for="inputPP12" class="block text-sm font-medium text-gray-300 mb-1">PP12 (%)</label>
+                    <input type="text" id="inputPP12" name="PP12" placeholder="0.00 to 100.00"
+                        pattern="^([0-9]{1,2}\.[0-9]{2}|100\.00|[0-9]{1,3})$"
+                        title="กรุณาป้อนตัวเลขในรูปแบบ xx.xx หรือ xxx (เช่น 85.50 หรือ 100)"
+                        oninput="validateEIIValue(this)"
+                        class="mt-1 block w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <!-- PP3 -->
+                <div>
+                    <label for="inputPP3" class="block text-sm font-medium text-gray-300 mb-1">PP3 (%)</label>
+                    <input type="text" id="inputPP3" name="PP3" placeholder="0.00 to 100.00"
+                        pattern="^([0-9]{1,2}\.[0-9]{2}|100\.00|[0-9]{1,3})$"
+                        title="กรุณาป้อนตัวเลขในรูปแบบ xx.xx หรือ xxx (เช่น 85.50 หรือ 100)"
+                        oninput="validateEIIValue(this)"
+                        class="mt-1 block w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+            </div>
+
+            <!-- Target (Fixed value for API consistency) -->
+            <input type="hidden" name="Target" value="73.07">
+
+            <!-- Custom Input Field with Pattern -->
+            <div>
+                <label for="customInput" class="block text-sm font-medium text-gray-300 mb-1">
+                    Custom Input (Pattern: Alphanumeric):
+                </label>
+                <input type="text" id="customInput" name="customInput"
+                    pattern="^([0-9]{1,2}\.[0-9]{2}|100\.00|[0-9]{1,3})$"
+                    placeholder="Enter alphanumeric characters only"
+                    title="กรุณาป้อนตัวเลขในรูปแบบ xx.xx หรือ xxx (เช่น 85.50 หรือ 100)"
+                    oninput="validateEIIValue(this)"
+                    class="mt-1 block w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500">
+            </div>
+
+            <button type="submit"
+                class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-md hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-purple-500 focus:ring-opacity-50">
+                ส่งข้อมูล EII ไปยัง API (Console Log Demo)
+            </button>
+        </form>
+    </div>
+    <!-- END SECTION 1 -->
+
+    <!-- SECTION 2: Admin Data Input Form (Unit Performance) -->
+    <div class="max-w-4xl mx-auto bg-gray-800 shadow-xl rounded-xl p-6 md:p-10 border border-teal-700 mt-8">
+        <h2 class="text-3xl font-extrabold text-teal-400 mb-4">
+            ส่วนควบคุม 2: บันทึกข้อมูลประสิทธิภาพ Unit
+        </h2>
+        <p class="text-gray-400 mb-6">
+            ป้อนวันที่, เลือก Unit และบันทึกค่าประสิทธิภาพรายเดือน (จำลองการส่งข้อมูล).
+        </p>
+
+        <form id="unitInputForm" class="space-y-6">
+            <!-- Dropdown Input -->
+            <div>
+                <label for="inputUnitId" class="block text-sm font-medium text-gray-300 mb-1">
+                    เลือก Unit: <span class="text-red-400">*</span>
+                </label>
+                <!-- NOTE: The 'select' must have the name 'UnitId' for FormData -->
+                <select id="inputUnitId" name="UnitId"
+                    class="mt-1 block w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500 appearance-none cursor-pointer">
+                    <option value="" disabled selected class="text-gray-500">--- กรุณาเลือก Unit ---</option>
+                    <!-- Options will be injected by JS -->
+                </select>
+            </div>
+
+            <!-- Date Input -->
+            <div>
+                <label for="inputDate2" class="block text-sm font-medium text-gray-300 mb-1">
+                    วันที่ (DateString - YYYY-MM-DD):
+                </label>
+                <input type="date" id="inputDate2" name="DateString"
+                    class="mt-1 block w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500">
+            </div>
+
+
+
+            <!-- Metric Inputs (Mocking specific metrics for demonstration) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Metric 1 -->
+                <div>
+                    <label for="inputMetric1" class="block text-sm font-medium text-gray-300 mb-1">Metric A
+                        (Decimal)</label>
+                    <input type="text" id="inputMetric1" name="MetricA" placeholder="เช่น 123.45"
+                        class="mt-1 block w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                </div>
+                <!-- Metric 2 -->
+                <div>
+                    <label for="inputMetric2" class="block text-sm font-medium text-gray-300 mb-1">Metric B
+                        (Decimal)</label>
+                    <input type="text" id="inputMetric2" name="MetricB" placeholder="เช่น 67.89"
+                        class="mt-1 block w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                </div>
+                <!-- Metric 3 -->
+                <div>
+                    <label for="inputMetric3" class="block text-sm font-medium text-gray-300 mb-1">Metric C
+                        (Decimal)</label>
+                    <input type="text" id="inputMetric3" name="MetricC" placeholder="เช่น 5.00"
+                        class="mt-1 block w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded-md text-gray-100 focus:outline-none focus:ring-2 focus:ring-teal-500">
+                </div>
+            </div>
+
+            <button type="submit"
+                class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-md hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-teal-500 focus:ring-opacity-50">
+                ส่งข้อมูล Unit ไปยัง API (Console Log Demo)
+            </button>
+        </form>
+    </div>
+    <!-- END SECTION 2 -->
+
+    <script>
+        // ข้อมูล JSON ที่ได้รับจากผู้ใช้
+        const inputData = { "avgList": [{ "DateString": "Oct24", "EII": "0.00", "Target": "73.07" }, { "DateString": "Nov24", "EII": "0.00", "Target": "73.07" }, { "DateString": "Dec24", "EII": "0.00", "Target": "73.07" }, { "DateString": "Jan25", "EII": "74.62", "Target": "73.07" }, { "DateString": "Feb25", "EII": "73.23", "Target": "73.07" }, { "DateString": "Mar25", "EII": "67.15", "Target": "73.07" }, { "DateString": "Apr25", "EII": "69.28", "Target": "73.07" }, { "DateString": "May25", "EII": "0.00", "Target": "73.07" }, { "DateString": "Jun25", "EII": "0.00", "Target": "73.07" }, { "DateString": "Jul25", "EII": "0.00", "Target": "73.07" }, { "DateString": "Aug25", "EII": "82.52", "Target": "73.07" }, { "DateString": "Sep25", "EII": "86.25", "Target": "73.07" }], "detailList": [{ "DateString": "Oct24", "HD": "0.00", "PP12": "0.00", "PP3": "0.00", "Target": "73.07" }, { "DateString": "Nov24", "HD": "0.00", "PP12": "0.00", "PP3": "0.00", "Target": "73.07" }, { "DateString": "Dec24", "HD": "0.00", "PP12": "0.00", "PP3": "0.00", "Target": "73.07" }, { "DateString": "Jan25", "HD": "79.98", "PP12": "78.70", "PP3": "65.18", "Target": "73.07" }, { "DateString": "Feb25", "HD": "69.74", "PP12": "73.70", "PP3": "76.25", "Target": "73.07" }, { "DateString": "Mar25", "HD": "69.53", "PP12": "69.11", "PP3": "62.81", "Target": "73.07" }, { "DateString": "Apr25", "HD": "63.46", "PP12": "78.47", "PP3": "65.91", "Target": "73.07" }, { "DateString": "May25", "HD": "0.00", "PP12": "0.00", "PP3": "0.00", "Target": "73.07" }, { "DateString": "Jun25", "HD": "0.00", "PP12": "0.00", "PP3": "0.00", "Target": "73.07" }, { "DateString": "Jul25", "HD": "0.00", "PP12": "0.00", "PP3": "0.00", "Target": "73.07" }, { "DateString": "Aug25", "HD": "0.00", "PP12": "82.52", "PP3": "0.00", "Target": "73.07" }, { "DateString": "Sep25", "HD": "88.98", "PP12": "83.52", "PP3": "0.00", "Target": "73.07" }], "avgList_Title": "ค่าเฉลี่ย EII Jan25-Sep25 75.51%", "detailList_Title": "รายละเอียด EII แยกส่วน Jan25-Sep25 75.51%" };
+
+        // NEW: ข้อมูลสำหรับ Dropdown
+        const unitOptions = [
+            { "UnitId": 1, "UnitName": "PP1&2" },
+            { "UnitId": 2, "UnitName": "HDPE" },
+            { "UnitId": 3, "UnitName": "PP3" }
+        ];
+
+        // ฟังก์ชันสำหรับเติมค่า 0.00 ด้วยค่า Target
+        function fillZeroWithTarget(data) {
+            return data.map(item => {
+                const newItem = { ...item };
+                // EII
+                if (parseFloat(newItem.EII) === 0) {
+                    newItem.EII = newItem.Target;
+                }
+                // Detail components
+                if (parseFloat(newItem.HD) === 0 && newItem.HD !== undefined) {
+                    newItem.HD = newItem.Target;
+                }
+                if (parseFloat(newItem.PP12) === 0 && newItem.PP12 !== undefined) {
+                    newItem.PP12 = newItem.Target;
+                }
+                if (parseFloat(newItem.PP3) === 0 && newItem.PP3 !== undefined) {
+                    newItem.PP3 = newItem.Target;
+                }
+                return newItem;
+            });
+        }
+
+        const filledAvgList = fillZeroWithTarget(inputData.avgList);
+        const filledDetailList = fillZeroWithTarget(inputData.detailList);
+
+        // กำหนดสีสำหรับ Dark Theme
+        const darkThemeColors = {
+            gridLineColor: 'rgba(255, 255, 255, 0.1)',
+            textColor: '#e5e7eb', // gray-100
+            axisLabelColor: '#9ca3af', // gray-400
+            tooltipBgColor: 'rgba(31, 41, 55, 0.8)', // gray-800 transparent
+            tooltipBorderColor: 'rgba(75, 85, 99, 1)', // gray-600
+            pointBgColor: '#1f2937', // gray-900
+            // Colors for Chart 1 (EII Avg)
+            defaultBarColor: 'rgba(59, 130, 246, 0.8)', // blue-500 (Above/Equal Target or Padded)
+            belowTargetColor: 'rgba(239, 68, 68, 0.8)', // red-500 (Below Target)
+
+            // Colors for Chart 2 (EII Detail) - ปรับปรุงเพื่อให้สีแตกต่างชัดเจนขึ้น
+            detailColors: {
+                // PASS Palette (Greens/Teals/Blues) - Distinct shades
+                HD_PASS: 'rgba(5, 150, 105, 0.9)',   // Deep Emerald (Green)
+                PP12_PASS: 'rgba(45, 212, 191, 0.9)', // Light Cyan/Teal
+                PP3_PASS: 'rgba(96, 165, 250, 0.9)', // Sky Blue
+
+                // FAIL Palette (Reds/Oranges) - Distinct shades
+                HD_FAIL: 'rgba(153, 27, 27, 0.9)',   // Deep Crimson (Maroon)
+                PP12_FAIL: 'rgba(234, 88, 12, 0.9)', // Dark Orange-Red
+                PP3_FAIL: 'rgba(220, 38, 38, 0.9)'   // Medium Red
+            }
+        };
+
+        // NEW: ฟังก์ชันสำหรับแสดง Toast Notification (ใช้ Tailwind CSS)
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+
+            // Determine colors and icon based on type
+            const baseClasses = "flex items-center w-full max-w-xs p-4 text-white rounded-lg shadow-xl transition-all transform duration-300 ease-out translate-x-0 opacity-100";
+            let bgClass = '';
+            let icon = '';
+
+            if (type === 'success') {
+                bgClass = 'bg-green-600';
+                icon = `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>`;
+            } else if (type === 'error') {
+                bgClass = 'bg-red-600';
+                icon = `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>`;
+            }
+
+            toast.className = `${baseClasses} ${bgClass}`;
+
+            // Check if message is an array and format as a list
+            let messageContent = '';
+            if (Array.isArray(message)) {
+                messageContent = '<ul class="list-disc pl-5">' + message.map(item => `<li>${item}</li>`).join('') + '</ul>';
+            } else {
+                messageContent = `<div class="text-sm font-normal">${message}</div>`;
+            }
+
+            toast.innerHTML = `
+                <div class="inline-flex flex-shrink-0 justify-center items-center w-6 h-6 rounded-lg mr-3">
+                    ${icon}
+                </div>
+                ${messageContent}
+            `;
+
+            container.prepend(toast); // Add new toast on top
+
+            // Auto-hide the toast
+            setTimeout(() => {
+                toast.classList.remove('opacity-100');
+                toast.classList.add('opacity-0');
+                toast.classList.add('translate-x-full'); // Move off screen
+                setTimeout(() => toast.remove(), 300); // Remove after transition
+            }, 4000);
+        }
+
+        // 5. ฟังก์ชันใหม่: กำหนดชื่อ Title ให้กับ Chart
+        function setChartTitles(data) {
+            // Title 1 และ Title 2 ถูกเปลี่ยนเป็น H2
+            document.getElementById('chart1Title').textContent = data.avgList_Title || 'ภาพรวมค่า EII และเป้าหมายรายเดือน';
+            document.getElementById('chart2Title').textContent = data.detailList_Title || 'รายละเอียด EII แยกส่วน (HD, PP12, PP3) รายเดือน';
+        }
+
+        // ฟังก์ชันสำหรับสร้างตารางสรุป (ไม่เปลี่ยนแปลง)
+        function createSummaryTable(data, tableBodyId, type) {
+            const dataBody = document.getElementById(tableBodyId);
+            dataBody.innerHTML = ''; // Clear existing data
+            data.forEach((item, index) => {
+                // ใช้ข้อมูลดั้งเดิมในการเปรียบเทียบสถานะ (avgList ดั้งเดิม)
+                const originalEii = parseFloat(inputData.avgList[index].EII);
+
+                const row = dataBody.insertRow();
+                let innerHTML = `<td class="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-100">${item.DateString}</td>`;
+
+                if (type === 'avg') {
+                    // ใช้ EII ที่เติมค่าแล้วสำหรับแสดงในตาราง แต่ใช้ originalEii สำหรับกำหนดสี
+                    const eiiVal = parseFloat(item.EII);
+                    const targetVal = parseFloat(item.Target);
+
+                    // Logic for status coloring in the table based on original data (EII > 0 and EII < Target)
+                    let status = 'text-gray-400';
+                    if (originalEii > targetVal) {
+                        status = 'font-bold text-green-400'; // Above Target
+                    } else if (originalEii > 0 && originalEii < targetVal) {
+                        status = 'font-bold text-red-400';   // Below Target
+                    } else if (originalEii === 0) {
+                        status = 'italic text-gray-500'; // No original data
+                    }
+
+                    innerHTML += `
+                        <td class="px-3 py-2 whitespace-nowrap text-sm ${status} text-right">${eiiVal.toFixed(2)}%</td>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-300 text-right">${targetVal.toFixed(2)}%</td>
+                    `;
+                } else if (type === 'detail') {
+                    const hdVal = parseFloat(item.HD || 0);
+                    const pp12Val = parseFloat(item.PP12 || 0);
+                    const pp3Val = parseFloat(item.PP3 || 0);
+                    const targetVal = parseFloat(item.Target);
+
+                    innerHTML += `
+                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-300 text-right">${hdVal.toFixed(2)}%</td>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-300 text-right">${pp12Val.toFixed(2)}%</td>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-300 text-right">${pp3Val.toFixed(2)}%</td>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-300 text-right">${targetVal.toFixed(2)}%</td>
+                    `;
+                }
+                row.innerHTML = innerHTML;
+            });
+        }
+
+
+        // ฟังก์ชันสำหรับสร้าง Chart 1: EII vs Target (ไม่เปลี่ยนแปลง)
+        function createEIIAvgChart() {
+            const labels = filledAvgList.map(item => item.DateString);
+            const eiiData = filledAvgList.map(item => parseFloat(item.EII));
+            const targetData = filledAvgList.map(item => parseFloat(item.Target));
+
+            // 1. สร้าง Array สีสำหรับแท่ง EII (สีน้ำเงิน/แดง ตาม performance)
+            const eiiBarColors = filledAvgList.map((item, index) => {
+                const eiiVal = parseFloat(inputData.avgList[index].EII); // ใช้ค่า EII ดั้งเดิมในการตรวจสอบ
+                const targetVal = parseFloat(item.Target);
+
+                // ตรวจสอบ: EII < Target และ EII มีค่าจริง (ไม่ใช่ 0.00 ที่ไม่มีข้อมูล)
+                if (eiiVal > 0 && eiiVal < targetVal) {
+                    return darkThemeColors.belowTargetColor; // สีแดงเมื่อต่ำกว่าเป้าหมาย
+                }
+                return darkThemeColors.defaultBarColor; // สีน้ำเงินสำหรับค่าที่สูงกว่า/เท่ากับเป้าหมาย หรือค่าที่เติมเข้ามา
+            });
+
+            const ctx = document.getElementById('eiiAvgChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'EII (%)',
+                            data: eiiData,
+                            backgroundColor: eiiBarColors, // 2. ใช้ Array สีที่คำนวณไว้
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderWidth: 1,
+                            order: 2,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Target (%)',
+                            data: targetData,
+                            type: 'line',
+                            fill: false,
+                            borderColor: 'rgba(251, 146, 60, 1)', // orange-400
+                            borderWidth: 3,
+                            pointRadius: 5,
+                            pointBackgroundColor: darkThemeColors.pointBgColor,
+                            pointBorderColor: 'rgba(251, 146, 60, 1)',
+                            tension: 0.1,
+                            order: 1,
+                            yAxisID: 'y'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: { font: { size: 14 }, color: darkThemeColors.textColor }
+                        },
+                        tooltip: {
+                            backgroundColor: darkThemeColors.tooltipBgColor,
+                            borderColor: darkThemeColors.tooltipBorderColor,
+                            borderWidth: 1,
+                            titleColor: darkThemeColors.textColor,
+                            bodyColor: darkThemeColors.textColor,
+                            callbacks: {
+                                label: function (context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) { label += ': '; }
+                                    if (context.parsed.y !== null) { label += context.parsed.y.toFixed(2) + '%'; }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'เดือน', font: { size: 16, weight: 'bold', color: darkThemeColors.textColor } },
+                            ticks: { color: darkThemeColors.axisLabelColor },
+                            grid: { display: true, color: darkThemeColors.gridLineColor }
+                        },
+                        y: {
+                            title: { display: true, text: 'EII (%)', font: { size: 16, weight: 'bold', color: darkThemeColors.textColor } },
+                            ticks: { color: darkThemeColors.axisLabelColor, callback: function (value) { return value + '%'; } },
+                            beginAtZero: true, min: 0, max: 100,
+                            grid: { display: true, color: darkThemeColors.gridLineColor }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ฟังก์ชันสำหรับสร้าง Chart 2: Detailed EII Components vs Target (ไม่เปลี่ยนแปลง)
+        function createEIIDetailChart() {
+            const labels = filledDetailList.map(item => item.DateString);
+            const hdData = filledDetailList.map(item => parseFloat(item.HD));
+            const pp12Data = filledDetailList.map(item => parseFloat(item.PP12));
+            const pp3Data = filledDetailList.map(item => parseFloat(item.PP3));
+            const targetData = filledDetailList.map(item => parseFloat(item.Target));
+
+            // 1. สร้าง Array สีสำหรับแต่ละ component โดยอิงตาม EII รวม
+            const hdColors = [];
+            const pp12Colors = [];
+            const pp3Colors = [];
+
+            filledDetailList.forEach((item, index) => {
+                const originalEii = parseFloat(inputData.avgList[index].EII);
+                const targetVal = parseFloat(item.Target);
+
+                // ตรวจสอบว่า EII รวมต่ำกว่าเป้าหมายหรือไม่
+                if (originalEii > 0 && originalEii < targetVal) {
+                    // FAIL Palette (ใช้สีแดง/ส้มที่ต่างเฉดกัน)
+                    hdColors.push(darkThemeColors.detailColors.HD_FAIL);
+                    pp12Colors.push(darkThemeColors.detailColors.PP12_FAIL);
+                    pp3Colors.push(darkThemeColors.detailColors.PP3_FAIL);
+                } else {
+                    // PASS Palette (ใช้สีเขียว/น้ำเงินที่ต่างเฉดกัน)
+                    hdColors.push(darkThemeColors.detailColors.HD_PASS);
+                    pp12Colors.push(darkThemeColors.detailColors.PP12_PASS);
+                    pp3Colors.push(darkThemeColors.detailColors.PP3_PASS);
+                }
+            });
+
+
+            const ctx = document.getElementById('eiiDetailChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Target (%)',
+                            data: targetData,
+                            type: 'line',
+                            fill: false,
+                            borderColor: 'rgba(251, 146, 60, 1)', // orange-400
+                            borderWidth: 3,
+                            pointRadius: 5,
+                            pointBackgroundColor: darkThemeColors.pointBgColor,
+                            pointBorderColor: 'rgba(251, 146, 60, 1)',
+                            tension: 0.1,
+                            order: 0, // ให้เส้น Target อยู่หน้าสุด
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'HD (%)',
+                            data: hdData,
+                            backgroundColor: hdColors,
+                            borderColor: hdColors.map(c => c.replace('0.9', '1')), // ใช้สีขอบที่เข้มกว่า
+                            borderWidth: 1,
+                            yAxisID: 'y',
+                            order: 1
+                        },
+                        {
+                            label: 'PP12 (%)',
+                            data: pp12Data,
+                            backgroundColor: pp12Colors,
+                            borderColor: pp12Colors.map(c => c.replace('0.9', '1')), // ใช้สีขอบที่เข้มกว่า
+                            borderWidth: 1,
+                            yAxisID: 'y',
+                            order: 1
+                        },
+                        {
+                            label: 'PP3 (%)',
+                            data: pp3Data,
+                            backgroundColor: pp3Colors,
+                            borderColor: pp3Colors.map(c => c.replace('0.9', '1')), // ใช้สีขอบที่เข้มกว่า
+                            borderWidth: 1,
+                            yAxisID: 'y',
+                            order: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: { font: { size: 14 }, color: darkThemeColors.textColor }
+                        },
+                        tooltip: {
+                            backgroundColor: darkThemeColors.tooltipBgColor,
+                            borderColor: darkThemeColors.tooltipBorderColor,
+                            borderWidth: 1,
+                            titleColor: darkThemeColors.textColor,
+                            bodyColor: darkThemeColors.textColor,
+                            mode: 'index', // แสดงข้อมูลทั้งหมดใน Group
+                            intersect: false,
+                            callbacks: {
+                                label: function (context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) { label += ': '; }
+                                    if (context.parsed.y !== null) { label += context.parsed.y.toFixed(2) + '%'; }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'เดือน', font: { size: 16, weight: 'bold', color: darkThemeColors.textColor } },
+                            ticks: { color: darkThemeColors.axisLabelColor },
+                            grid: { display: true, color: darkThemeColors.gridLineColor }
+                        },
+                        y: {
+                            title: { display: true, text: 'EII (%)', font: { size: 16, weight: 'bold', color: darkThemeColors.textColor } },
+                            ticks: { color: darkThemeColors.axisLabelColor, callback: function (value) { return value + '%'; } },
+                            beginAtZero: true, min: 0, max: 100,
+                            stacked: false, // ตั้งค่าเป็น Grouped Bar Chart
+                            grid: { display: true, color: darkThemeColors.gridLineColor }
+                        }
+                    }
+                }
+            });
+        }
+
+        // NEW: ฟังก์ชันรวมสำหรับตรวจสอบค่า Decimal Input
+        const decimalRegex = /^-?\d+(\.\d+)?$/;
+        function validateDecimalInput(input) {
+            const value = input.value.trim();
+            // อนุญาตให้ว่างเปล่า เพราะข้อมูลจริงอาจยังไม่มีในบาง component
+            return value === '' || decimalRegex.test(value);
+        }
+
+        // NEW: ฟังก์ชันสำหรับ populate Dropdown
+        function populateUnitDropdown(options) {
+            const select = document.getElementById('inputUnitId');
+            if (!select) return;
+
+            options.forEach(unit => {
+                const option = document.createElement('option');
+                // ใช้ UnitId (ที่เป็น number) เป็น value สำหรับ FormData
+                option.value = unit.UnitId.toString();
+                option.textContent = unit.UnitName; // แสดง UnitName
+                select.appendChild(option);
+            });
+        }
+
+        // Validate EII Value
+        function validateEIIValue(input) {
+            const value = input.value;
+            // Allow empty value during typing
+            if (!value) return;
+
+            // Remove non-numeric characters except decimal point
+            let cleaned = value.replace(/[^\d.]/g, '');
+
+            // Ensure only one decimal point
+            const parts = cleaned.split('.');
+            if (parts.length > 2) {
+                cleaned = parts[0] + '.' + parts.slice(1).join('');
+            }
+
+            // Handle decimal places
+            if (cleaned.includes('.')) {
+                const [whole, decimal] = cleaned.split('.');
+                // Limit whole number to 3 digits max
+                const limitedWhole = whole.slice(0, 3);
+                // Keep original decimal digits (up to 2)
+                cleaned = `${limitedWhole}.${decimal.slice(0, 2)}`;
+            }
+
+            // Convert to number and validate range
+            const num = parseFloat(cleaned);
+            if (num > 100) {
+                cleaned = '100.00';
+            }
+
+            // Update input value
+            input.value = cleaned;
+        }
+
+        // ฟังก์ชันสำหรับการตรวจสอบและส่งข้อมูล EII (Form 1)
+        function submitEIIData(event) {
+            event.preventDefault();
+
+            const form = document.getElementById('eiiInputForm');
+
+            const dateInput = document.getElementById('inputDate');
+            const hdInput = document.getElementById('inputHD');
+            const pp12Input = document.getElementById('inputPP12');
+            const pp3Input = document.getElementById('inputPP3');
+
+            // --- Custom Validation ---
+            let isValid = true;
+            let errorMessage = [];
+
+            // 1. ตรวจสอบวันที่
+            if (!dateInput.value) {
+                isValid = false;
+                errorMessage.push('คุณยังไม่ได้ใส่วันที่');
+            }
+
+            // 2. ตรวจสอบค่า EII Components
+            const componentInputs = [
+                { name: 'HD', input: hdInput },
+                { name: 'PP12', input: pp12Input },
+                { name: 'PP3', input: pp3Input }
+            ];
+
+            componentInputs.forEach(({ name, input }) => {
+                if (!input.value.trim()) {
+                    isValid = false;
+                    errorMessage.push(`กรุณากรอกค่า ${name}`);
+                } else if (!validateDecimalInput(input)) {
+                    isValid = false;
+                    errorMessage.push(`ค่า ${name} ต้องเป็นตัวเลขทศนิยมที่ถูกต้อง`);
+                }
+            });
+
+            if (!isValid) {
+                showToast(errorMessage.join('<br>'), 'error');
+                return;
+            }
+
+            // --- Prepare and Log FormData ---
+            const formData = new FormData(form);
+
+            console.log('--- EII Data Ready to Send to GAS API (FormData) ---');
+
+            // Log all form data entries
+            for (let [key, value] of formData.entries()) {
+                console.log(`${key}: ${value}`);
+            }
+            console.log('-------------------------------------------');
+
+            form.reset();
+            showToast('✅ ข้อมูล EII ถูกรวบรวมและบันทึกใน Console Log เรียบร้อยแล้ว!', 'success');
+        }
+
+        // NEW: ฟังก์ชันสำหรับการตรวจสอบและส่งข้อมูล Unit (Form 2)
+        function submitUnitData(event) {
+            event.preventDefault();
+
+            const form = document.getElementById('unitInputForm');
+
+            const unitInput = document.getElementById('inputUnitId');
+            const dateInput = document.getElementById('inputDate2');
+            const metric1Input = document.getElementById('inputMetric1');
+            const metric2Input = document.getElementById('inputMetric2');
+            const metric3Input = document.getElementById('inputMetric3');
+
+            let isValid = true;
+            let errorMessage = [];
+
+            // 1. ตรวจสอบ Dropdown (MANDATORY)
+            if (!unitInput.value) {
+                isValid = false;
+                errorMessage.push('กรุณาเลือก Unit จาก Dropdown ก่อน');
+            }
+
+            // 2. ตรวจสอบวันที่
+            if (!dateInput.value) {
+                isValid = false;
+                errorMessage.push('คุณยังไม่ได้ใส่วันที่');
+            }
+
+            // 3. ตรวจสอบค่า Metric Components
+            const metricInputs = [
+                { name: 'Metric A', input: metric1Input },
+                { name: 'Metric B', input: metric2Input },
+                { name: 'Metric C', input: metric3Input }
+            ];
+
+            metricInputs.forEach(({ name, input }) => {
+                if (!input.value.trim()) {
+                    isValid = false;
+                    errorMessage.push(`กรุณากรอกค่า ${name}`);
+                } else if (!validateDecimalInput(input)) {
+                    isValid = false;
+                    errorMessage.push(`ค่า ${name} ต้องเป็นตัวเลขทศนิยมที่ถูกต้อง`);
+                }
+            });
+
+            if (!isValid) {
+                showToast(errorMessage, 'error'); // ส่ง errorMessage เป็น array
+                return;
+            }
+
+            // --- Prepare and Log FormData ---
+            const formData = new FormData(form);
+
+            console.log('--- Unit Performance Data Ready to Send to GAS API (FormData) ---');
+
+            // Log all form data entries
+            for (let [key, value] of formData.entries()) {
+                console.log(`${key}: ${value}`);
+            }
+            console.log('-------------------------------------------');
+
+            form.reset();
+            unitInput.value = ""; // ต้องรีเซ็ต Dropdown ด้วย
+            showToast('✅ ข้อมูล Unit ถูกรวบรวมและบันทึกใน Console Log เรียบร้อยแล้ว!', 'success');
+        }
+
+
+        // เรียกใช้งานฟังก์ชันเมื่อหน้าเว็บโหลดเสร็จ
+        window.onload = function () {
+            setChartTitles(inputData); // เรียกฟังก์ชันกำหนดชื่อ
+            createEIIAvgChart();
+            document.querySelector('#dataSummaryAvg h3').textContent = 'สรุปข้อมูล EII รวม';
+
+            createSummaryTable(filledAvgList, 'dataBodyAvg', 'avg');
+
+            createEIIDetailChart();
+            document.querySelector('#dataSummaryDetail h3').textContent = 'สรุปข้อมูล EII แยกส่วน';
+
+            createSummaryTable(filledDetailList, 'dataBodyDetail', 'detail');
+
+            // Inject raw data structure JSON
+            const rawDataEl = document.getElementById('rawDataStructure');
+            if (rawDataEl) {
+                const jsonString = JSON.stringify(inputData.detailList, null, 2);
+                rawDataEl.textContent = jsonString;
+            }
+
+            // NEW: Populate dropdown
+            populateUnitDropdown(unitOptions);
+
+            // 7. Attach submit handlers for Admin Forms
+            const form1 = document.getElementById('eiiInputForm');
+            if (form1) {
+                form1.addEventListener('submit', submitEIIData);
+            }
+
+            const form2 = document.getElementById('unitInputForm');
+            if (form2) {
+                form2.addEventListener('submit', submitUnitData);
+            }
+        };
+
+        // Validation for EII Form
+        document.getElementById('eiiInputForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const dateInput = document.getElementById('inputDate');
+            const hdInput = document.getElementById('inputHD');
+            const pp12Input = document.getElementById('inputPP12');
+            const pp3Input = document.getElementById('inputPP3');
+
+            let errors = [];
+
+            // Validate date
+            if (!dateInput.value) {
+                errors.push('คุณยังไม่ได้ใส่ค่า');
+            }
+
+            // Validate HD
+            if (!hdInput.value || isNaN(hdInput.value) || hdInput.value < 0 || hdInput.value > 100) {
+                errors.push('กรุณากรอกค่า HD เป็นตัวเลขระหว่าง 0 ถึง 100');
+            }
+
+            // Validate PP12
+            if (!pp12Input.value || isNaN(pp12Input.value) || pp12Input.value < 0 || pp12Input.value > 100) {
+                errors.push('กรุณากรอกค่า PP12 เป็นตัวเลขระหว่าง 0 ถึง 100');
+            }
+
+            // Validate PP3
+            if (!pp3Input.value || isNaN(pp3Input.value) || pp3Input.value < 0 || pp3Input.value > 100) {
+                errors.push('กรุณากรอกค่า PP3 เป็นตัวเลขระหว่าง 0 ถึง 100');
+            }
+
+            if (errors.length > 0) {
+                showToast(errors, 'error'); // ส่ง errors เป็น array
+                return;
+            }
+
+            showToast('ข้อมูลถูกต้องและพร้อมส่ง!', 'success');
+            // Proceed with form submission logic
+        });
+
+        // Validation for Unit Form
+        document.getElementById('unitInputForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const dateInput = document.getElementById('inputDate2');
+            const unitSelect = document.getElementById('inputUnitId');
+            const metric1Input = document.getElementById('inputMetric1');
+            const metric2Input = document.getElementById('inputMetric2');
+            const metric3Input = document.getElementById('inputMetric3');
+
+            let errors = [];
+
+            // Validate date
+            if (!dateInput.value) {
+                errors.push('กรุณาเลือกวันที่');
+            }
+
+            // Validate Unit selection
+            if (!unitSelect.value) {
+                errors.push('กรุณาเลือก Unit');
+            }
+
+            // Validate Metric 1
+            if (!metric1Input.value || isNaN(metric1Input.value)) {
+                errors.push('กรุณากรอกค่า Metric A เป็นตัวเลข');
+            }
+
+            // Validate Metric 2
+            if (!metric2Input.value || isNaN(metric2Input.value)) {
+                errors.push('กรุณากรอกค่า Metric B เป็นตัวเลข');
+            }
+
+            // Validate Metric 3
+            if (!metric3Input.value || isNaN(metric3Input.value)) {
+                errors.push('กรุณากรอกค่า Metric C เป็นตัวเลข');
+            }
+
+            if (errors.length > 0) {
+                showToast(errors.join('\n'), 'error');
+                return;
+            }
+
+            showToast('ข้อมูลถูกต้องและพร้อมส่ง!', 'success');
+            // Proceed with form submission logic
+        });
+
+        // Automatically set today's date for input type="date"
+        function setTodayDate(inputId) {
+            const dateInput = document.getElementById(inputId);
+            if (dateInput) {
+                const today = new Date();
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                dateInput.value = `${year}-${month}-${day}`;
+            }
+        }
+
+        // Call the function for the relevant input fields
+        setTodayDate('inputDate');
+        setTodayDate('section2Date');
+    </script>
+</body>
+
+</html>
